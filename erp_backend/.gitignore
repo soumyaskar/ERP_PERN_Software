@@ -1,0 +1,5 @@
+.env
+node_modules/
+# Ignore application logs
+log.json
+*.log
