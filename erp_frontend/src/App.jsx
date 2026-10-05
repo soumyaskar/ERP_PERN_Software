@@ -1,15 +1,13 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './components/Login';
-import Dashboard from './components/Dashboard';
 import Layout from './components/Layout';
-import Customers from './components/Customer';
-import Quotations from './components/Quotations'; // 1. Import the new component
+import Enquiries from './components/Enquiries';
+import Quotations from './components/Quotations';
 import SalesOrders from './components/SalesOrders';
-import Dispatches from './components/Dispatches';
 
 const PrivateRoute = ({ children }) => {
   const token = localStorage.getItem('token');
-  return token ? children : <Navigate to="/" />;
+  return token ? children : <Navigate to="/" replace />;
 };
 
 function App() {
@@ -23,15 +21,14 @@ function App() {
             <Layout />
           </PrivateRoute>
         }>
-          <Route index element={<Dashboard />} />
-          <Route path="customers" element={<Customers />} />
-          {/* 2. Add the Quotations route here */}
+          <Route index element={<Navigate to="enquiries" replace />} />
+          <Route path="enquiries" element={<Enquiries />} />
           <Route path="quotations" element={<Quotations />} />
           <Route path="orders" element={<SalesOrders />} />
-          <Route path="dispatches" element={<Dispatches />} />
-          
-          <Route path="*" element={<div className="p-4">Module coming soon...</div>} />
+          <Route path="*" element={<Navigate to="enquiries" replace />} />
         </Route>
+
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   );
