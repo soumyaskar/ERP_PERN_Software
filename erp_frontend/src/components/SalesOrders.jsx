@@ -12,7 +12,9 @@ import {
     X, 
     ShieldAlert, 
     RefreshCw,
-    ClipboardCheck
+    ClipboardCheck,
+    Plus,
+    PackagePlus
 } from 'lucide-react';
 
 const SalesOrders = () => {
@@ -32,6 +34,19 @@ const SalesOrders = () => {
     const [dispatchDate, setDispatchDate] = useState(new Date().toISOString().slice(0, 10));
     const [dispatchSubmitting, setDispatchSubmitting] = useState(false);
     const [actionMessage, setActionMessage] = useState(null);
+
+    // Add Product & Inventory Modal State
+    const [isAddProductModalOpen, setIsAddProductModalOpen] = useState(false);
+    const [productForm, setProductForm] = useState({
+        product_code: '',
+        name: '',
+        category: 'Piping',
+        unit: 'Piece',
+        base_price: '',
+        physical_qty: 50
+    });
+    const [productFormError, setProductFormError] = useState('');
+    const [productSubmitting, setProductSubmitting] = useState(false);
 
     // Current user and role
     const user = JSON.parse(localStorage.getItem('user') || '{}');
@@ -58,6 +73,40 @@ const SalesOrders = () => {
     useEffect(() => {
         fetchData();
     }, []);
+
+    // Create Product & Initialize Warehouse Stock
+    const handleCreateProduct = async (e) => {
+        e.preventDefault();
+        setProductFormError('');
+        if (!productForm.product_code || !productForm.name || !productForm.base_price) {
+            setProductFormError('Product code, name, and base price are required.');
+            return;
+        }
+
+        try {
+            setProductSubmitting(true);
+            await api.post('/products', {
+                ...productForm,
+                base_price: Number(productForm.base_price),
+                physical_qty: Number(productForm.physical_qty || 0)
+            });
+            setIsAddProductModalOpen(false);
+            setProductForm({
+                product_code: '',
+                name: '',
+                category: 'Piping',
+                unit: 'Piece',
+                base_price: '',
+                physical_qty: 50
+            });
+            setActionMessage({ type: 'success', text: `Product ${productForm.product_code.toUpperCase()} successfully added to inventory!` });
+            fetchData();
+        } catch (error) {
+            setProductFormError(error.response?.data?.error || 'Failed to add product to inventory.');
+        } finally {
+            setProductSubmitting(false);
+        }
+    };
 
     // 1. Confirm & Reserve Stock (Admin Only)
     const handleConfirmOrder = async (orderId) => {
@@ -396,13 +445,25 @@ const SalesOrders = () => {
             {/* TAB 2: LIVE INVENTORY MASTER */}
             {activeTab === 'INVENTORY' && (
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                    <div className="p-5 border-b border-gray-200 flex justify-between items-center bg-gray-50/50">
+                    <div className="p-5 border-b border-gray-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-gray-50/50">
                         <div className="flex items-center space-x-2">
                             <Boxes className="w-4 h-4 text-emerald-600" />
                             <h3 className="text-sm font-bold text-gray-900">Warehouse Inventory Master</h3>
                         </div>
-                        <div className="text-xs text-gray-500 font-medium">
-                            Available Stock = Physical Stock − Reserved Stock − Damaged Stock
+                        <div className="flex items-center space-x-3">
+                            <span className="text-xs text-gray-500 font-medium hidden md:inline">
+                                Available = Physical − Reserved − Damaged
+                            </span>
+                            <button
+                                onClick={() => {
+                                    setProductFormError('');
+                                    setIsAddProductModalOpen(true);
+                                }}
+                                className="flex items-center space-x-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold shadow-xs transition"
+                            >
+                                <Plus className="w-3.5 h-3.5" />
+                                <span>Add Product & Stock</span>
+                            </button>
                         </div>
                     </div>
 
@@ -611,6 +672,155 @@ const SalesOrders = () => {
                                     className="px-5 py-2 text-xs font-semibold bg-purple-600 hover:bg-purple-700 text-white rounded-lg shadow-sm transition disabled:opacity-50"
                                 >
                                     {dispatchSubmitting ? 'Dispatching...' : 'Confirm Dispatch'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* MODAL: Add New Product & Initialize Inventory */}
+            {isAddProductModalOpen && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden border border-gray-200">
+                        <div className="p-5 border-b border-gray-200 flex justify-between items-center bg-gray-50/50">
+                            <div className="flex items-center space-x-2">
+                                <PackagePlus className="w-5 h-5 text-emerald-600" />
+                                <h3 className="font-bold text-gray-900 text-sm">Add Industrial Product & Initial Stock</h3>
+                            </div>
+                            <button
+                                onClick={() => setIsAddProductModalOpen(false)}
+                                className="text-gray-400 hover:text-gray-600"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleCreateProduct} className="p-6 space-y-4">
+                            {productFormError && (
+                                <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-lg flex items-center space-x-2">
+                                    <AlertTriangle className="w-4 h-4 shrink-0" />
+                                    <span>{productFormError}</span>
+                                </div>
+                            )}
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-xs font-semibold text-gray-700 mb-1">
+                                        Product Code *
+                                    </label>
+                                    <input
+                                        type="text"
+                                        required
+                                        placeholder="e.g. PRD-107"
+                                        value={productForm.product_code}
+                                        onChange={(e) => setProductForm({ ...productForm, product_code: e.target.value.toUpperCase() })}
+                                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:outline-none font-mono"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-semibold text-gray-700 mb-1">
+                                        Category *
+                                    </label>
+                                    <select
+                                        value={productForm.category}
+                                        onChange={(e) => setProductForm({ ...productForm, category: e.target.value })}
+                                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:outline-none bg-white"
+                                    >
+                                        <option value="Piping">Piping</option>
+                                        <option value="Valves">Valves</option>
+                                        <option value="Mechanical">Mechanical</option>
+                                        <option value="Electrical">Electrical</option>
+                                        <option value="Pneumatics">Pneumatics</option>
+                                        <option value="Chemicals">Chemicals</option>
+                                        <option value="Fittings">Fittings</option>
+                                        <option value="Hardware">Hardware</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                                    Product Name / Description *
+                                </label>
+                                <input
+                                    type="text"
+                                    required
+                                    placeholder="e.g. Industrial Flange 4-inch Heavy Duty"
+                                    value={productForm.name}
+                                    onChange={(e) => setProductForm({ ...productForm, name: e.target.value })}
+                                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                                />
+                            </div>
+
+                            <div className="grid grid-cols-3 gap-3">
+                                <div>
+                                    <label className="block text-xs font-semibold text-gray-700 mb-1">
+                                        Unit *
+                                    </label>
+                                    <select
+                                        value={productForm.unit}
+                                        onChange={(e) => setProductForm({ ...productForm, unit: e.target.value })}
+                                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:outline-none bg-white"
+                                    >
+                                        <option value="Piece">Piece</option>
+                                        <option value="Meter">Meter</option>
+                                        <option value="Unit">Unit</option>
+                                        <option value="Coil">Coil</option>
+                                        <option value="Barrel">Barrel</option>
+                                        <option value="Kg">Kg</option>
+                                        <option value="Box">Box</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-semibold text-gray-700 mb-1">
+                                        Base Price (₹) *
+                                    </label>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        required
+                                        placeholder="1200"
+                                        value={productForm.base_price}
+                                        onChange={(e) => setProductForm({ ...productForm, base_price: e.target.value })}
+                                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:outline-none font-mono"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-semibold text-gray-700 mb-1">
+                                        Initial Physical Stock *
+                                    </label>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        required
+                                        placeholder="50"
+                                        value={productForm.physical_qty}
+                                        onChange={(e) => setProductForm({ ...productForm, physical_qty: e.target.value })}
+                                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:outline-none font-mono"
+                                    />
+                                </div>
+                            </div>
+
+                            <p className="text-[11px] text-gray-500 italic bg-emerald-50 p-2.5 rounded-lg border border-emerald-100 text-emerald-800">
+                                This will add the product to the Product Catalog and immediately allocate {Number(productForm.physical_qty || 0)} units of physical available stock in the warehouse.
+                            </p>
+
+                            <div className="pt-3 border-t border-gray-200 flex justify-end space-x-3">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsAddProductModalOpen(false)}
+                                    className="px-4 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-100 rounded-lg transition"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={productSubmitting}
+                                    className="px-5 py-2 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg shadow-sm transition disabled:opacity-50"
+                                >
+                                    {productSubmitting ? 'Saving...' : 'Add to Inventory'}
                                 </button>
                             </div>
                         </form>

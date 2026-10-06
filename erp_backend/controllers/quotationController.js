@@ -131,6 +131,7 @@ const getQuotations = async (req, res) => {
                 c.company_name,
                 c.contact_person,
                 c.email as customer_email,
+                c.mobile as customer_mobile,
                 q.valid_until,
                 q.status,
                 q.subtotal,
@@ -179,6 +180,8 @@ const getQuotationById = async (req, res) => {
                 e.enquiry_number,
                 c.company_name,
                 c.contact_person,
+                c.email as customer_email,
+                c.mobile as customer_mobile,
                 COALESCE(
                     JSON_AGG(
                         JSON_BUILD_OBJECT(

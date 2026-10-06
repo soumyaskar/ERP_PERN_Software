@@ -1,7 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import api from '../api';
-import { FileText, Plus, CheckCircle, XCircle, Send, ShoppingCart, ChevronDown, ChevronRight, X, AlertCircle } from 'lucide-react';
+import { 
+    FileText, 
+    Plus, 
+    CheckCircle, 
+    XCircle, 
+    Send, 
+    ShoppingCart, 
+    ChevronDown, 
+    ChevronRight, 
+    X, 
+    AlertCircle, 
+    Mail, 
+    Phone, 
+    SendHorizontal,
+    Check
+} from 'lucide-react';
 
 const Quotations = () => {
     const location = useLocation();
@@ -12,9 +27,15 @@ const Quotations = () => {
     const [salesOrders, setSalesOrders] = useState([]);
     const [loading, setLoading] = useState(true);
 
-    // Modal state
+    // Modal state for Create Quotation
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [expandedQuoteId, setExpandedQuoteId] = useState(null);
+
+    // Send Quote Modal State
+    const [sendingQuote, setSendingQuote] = useState(null);
+    const [sendChannel, setSendChannel] = useState('EMAIL'); // 'EMAIL' or 'PHONE'
+    const [sendSuccessToast, setSendSuccessToast] = useState(null);
+    const [isSending, setIsSending] = useState(false);
 
     // Form state
     const [selectedEnquiryId, setSelectedEnquiryId] = useState('');
@@ -50,8 +71,10 @@ const Quotations = () => {
     useEffect(() => {
         if (location.state?.createForEnquiryId && enquiries.length > 0) {
             handleOpenModalForEnquiry(location.state.createForEnquiryId);
+            // CRITICAL: Clear location.state so subsequent renders/fetches don't reopen modal
+            navigate(location.pathname, { replace: true, state: {} });
         }
-    }, [location.state, enquiries]);
+    }, [location.state?.createForEnquiryId, enquiries.length]);
 
     const handleOpenModalForEnquiry = (enquiryId) => {
         setSelectedEnquiryId(enquiryId);
@@ -155,7 +178,12 @@ const Quotations = () => {
             });
 
             setIsModalOpen(false);
-            fetchData();
+            setSelectedEnquiryId('');
+            setQuoteItems([]);
+            setValidUntil('');
+            setFormError('');
+            navigate(location.pathname, { replace: true, state: {} });
+            await fetchData();
         } catch (error) {
             setFormError(error.response?.data?.error || 'Failed to create quotation');
         } finally {
@@ -163,10 +191,32 @@ const Quotations = () => {
         }
     };
 
+    const handleConfirmSendQuote = async (e) => {
+        if (e) e.preventDefault();
+        if (!sendingQuote) return;
+
+        try {
+            setIsSending(true);
+            await api.patch(`/quotations/${sendingQuote.id}/status`, { status: 'SENT' });
+            
+            const contactTarget = sendChannel === 'EMAIL' 
+                ? (sendingQuote.customer_email ? `Email (${sendingQuote.customer_email})` : 'Registered Email')
+                : (sendingQuote.customer_mobile ? `Phone Call (${sendingQuote.customer_mobile})` : 'Registered Phone');
+
+            setSendSuccessToast(`Quotation ${sendingQuote.quotation_number} successfully dispatched to ${sendingQuote.company_name} via ${contactTarget}!`);
+            setSendingQuote(null);
+            await fetchData();
+        } catch (error) {
+            alert('Failed to send quotation: ' + (error.response?.data?.error || error.message));
+        } finally {
+            setIsSending(false);
+        }
+    };
+
     const handleStatusUpdate = async (quoteId, status) => {
         try {
             await api.patch(`/quotations/${quoteId}/status`, { status });
-            fetchData();
+            await fetchData();
         } catch (error) {
             alert('Failed to update status: ' + (error.response?.data?.error || error.message));
         }
@@ -202,6 +252,22 @@ const Quotations = () => {
 
     return (
         <div className="space-y-6">
+            {/* Notification Toast Banner */}
+            {sendSuccessToast && (
+                <div className="p-4 rounded-xl text-xs font-medium flex items-center justify-between border bg-emerald-50 border-emerald-200 text-emerald-800 shadow-xs">
+                    <div className="flex items-center space-x-2">
+                        <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+                        <span>{sendSuccessToast}</span>
+                    </div>
+                    <button 
+                        onClick={() => setSendSuccessToast(null)}
+                        className="text-emerald-600 hover:text-emerald-900 font-bold ml-4"
+                    >
+                        <X className="w-4 h-4" />
+                    </button>
+                </div>
+            )}
+
             {/* Top Stats Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                 <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
@@ -320,7 +386,10 @@ const Quotations = () => {
                                                 <div className="flex items-center justify-center space-x-1.5">
                                                     {quote.status === 'DRAFT' && (
                                                         <button
-                                                            onClick={() => handleStatusUpdate(quote.id, 'SENT')}
+                                                            onClick={() => {
+                                                                setSendingQuote(quote);
+                                                                setSendChannel(quote.customer_email ? 'EMAIL' : (quote.customer_mobile ? 'PHONE' : 'EMAIL'));
+                                                            }}
                                                             className="inline-flex items-center space-x-1 px-2.5 py-1 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded text-xs font-semibold transition"
                                                             title="Send Quote to Customer"
                                                         >
@@ -600,6 +669,111 @@ const Quotations = () => {
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {/* MODAL: Dispatch / Inform Quotation to Customer */}
+            {sendingQuote && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden border border-gray-200">
+                        <div className="p-5 border-b border-gray-200 flex justify-between items-center bg-gray-50/50">
+                            <div className="flex items-center space-x-2">
+                                <SendHorizontal className="w-5 h-5 text-blue-600" />
+                                <h3 className="font-bold text-gray-900 text-sm">Send Quotation to Customer</h3>
+                            </div>
+                            <button
+                                onClick={() => setSendingQuote(null)}
+                                className="text-gray-400 hover:text-gray-600"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        <div className="p-6 space-y-4">
+                            {/* Summary Box */}
+                            <div className="p-3.5 bg-slate-50 rounded-xl border border-gray-200 text-xs space-y-1">
+                                <div className="flex justify-between">
+                                    <span className="text-gray-500">Quotation No:</span>
+                                    <span className="font-mono font-bold text-gray-800">{sendingQuote.quotation_number}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span className="text-gray-500">Customer:</span>
+                                    <span className="font-semibold text-gray-800">{sendingQuote.company_name}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span className="text-gray-500">Contact Person:</span>
+                                    <span className="text-gray-700">{sendingQuote.contact_person || 'N/A'}</span>
+                                </div>
+                                <div className="flex justify-between border-t border-gray-200 pt-1 mt-1">
+                                    <span className="text-gray-500">Grand Total:</span>
+                                    <span className="font-mono font-bold text-emerald-700">₹{Number(sendingQuote.grand_total).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                                </div>
+                            </div>
+
+                            {/* Dispatch Channel Selector */}
+                            <div>
+                                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
+                                    Select Notification Method:
+                                </label>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <button
+                                        type="button"
+                                        onClick={() => setSendChannel('EMAIL')}
+                                        className={`flex flex-col items-center justify-center p-3.5 rounded-xl border text-xs transition ${
+                                            sendChannel === 'EMAIL'
+                                                ? 'border-blue-600 bg-blue-50/60 text-blue-700 font-bold shadow-xs'
+                                                : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
+                                        }`}
+                                    >
+                                        <Mail className={`w-5 h-5 mb-1 ${sendChannel === 'EMAIL' ? 'text-blue-600' : 'text-gray-400'}`} />
+                                        <span>Send via Email</span>
+                                        <span className="text-[11px] text-gray-400 font-normal truncate max-w-full px-1">
+                                            {sendingQuote.customer_email || 'No email saved'}
+                                        </span>
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        onClick={() => setSendChannel('PHONE')}
+                                        className={`flex flex-col items-center justify-center p-3.5 rounded-xl border text-xs transition ${
+                                            sendChannel === 'PHONE'
+                                                ? 'border-blue-600 bg-blue-50/60 text-blue-700 font-bold shadow-xs'
+                                                : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
+                                        }`}
+                                    >
+                                        <Phone className={`w-5 h-5 mb-1 ${sendChannel === 'PHONE' ? 'text-blue-600' : 'text-gray-400'}`} />
+                                        <span>Notify via Call / SMS</span>
+                                        <span className="text-[11px] text-gray-400 font-normal truncate max-w-full px-1">
+                                            {sendingQuote.customer_mobile || 'No phone saved'}
+                                        </span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <p className="text-[11px] text-gray-500 italic bg-amber-50/70 p-2.5 rounded-lg border border-amber-200 text-amber-800">
+                                This will update the quotation status to <strong>SENT</strong> and notify the customer to approve or reject the proposal.
+                            </p>
+
+                            <div className="pt-3 border-t border-gray-200 flex justify-end space-x-3">
+                                <button
+                                    type="button"
+                                    onClick={() => setSendingQuote(null)}
+                                    className="px-4 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-100 rounded-lg transition"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="button"
+                                    disabled={isSending}
+                                    onClick={handleConfirmSendQuote}
+                                    className="px-5 py-2 text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-sm transition disabled:opacity-50 flex items-center space-x-1.5"
+                                >
+                                    <Send className="w-3.5 h-3.5" />
+                                    <span>{isSending ? 'Sending...' : `Confirm & Send via ${sendChannel === 'EMAIL' ? 'Email' : 'Call'}`}</span>
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             )}
