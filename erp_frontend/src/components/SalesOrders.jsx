@@ -48,6 +48,11 @@ const SalesOrders = () => {
     const [productFormError, setProductFormError] = useState('');
     const [productSubmitting, setProductSubmitting] = useState(false);
 
+    // Restock / Add Quantity Modal State (Admin Only)
+    const [restockProduct, setRestockProduct] = useState(null);
+    const [addedQty, setAddedQty] = useState(10);
+    const [restockSubmitting, setRestockSubmitting] = useState(false);
+
     // Current user and role
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     const isAdmin = user.role === 'ADMIN';
@@ -105,6 +110,36 @@ const SalesOrders = () => {
             setProductFormError(error.response?.data?.error || 'Failed to add product to inventory.');
         } finally {
             setProductSubmitting(false);
+        }
+    };
+
+    // Restock / Add Physical Quantity to Existing Product (Admin Only)
+    const handleRestockSubmit = async (e) => {
+        e.preventDefault();
+        if (!restockProduct) return;
+        const addAmount = Number(addedQty);
+        if (isNaN(addAmount) || addAmount <= 0) {
+            alert('Please enter a valid quantity greater than 0.');
+            return;
+        }
+
+        try {
+            setRestockSubmitting(true);
+            const newPhysical = Number(restockProduct.physical_qty) + addAmount;
+            await api.patch(`/inventory/${restockProduct.product_id}`, {
+                physical_qty: newPhysical
+            });
+            setActionMessage({
+                type: 'success',
+                text: `Successfully added ${addAmount} units to ${restockProduct.product_name}! New physical stock: ${newPhysical}.`
+            });
+            setRestockProduct(null);
+            setAddedQty(10);
+            fetchData();
+        } catch (error) {
+            alert(error.response?.data?.error || 'Failed to update inventory quantity.');
+        } finally {
+            setRestockSubmitting(false);
         }
     };
 
@@ -454,16 +489,18 @@ const SalesOrders = () => {
                             <span className="text-xs text-gray-500 font-medium hidden md:inline">
                                 Available = Physical − Reserved − Damaged
                             </span>
-                            <button
-                                onClick={() => {
-                                    setProductFormError('');
-                                    setIsAddProductModalOpen(true);
-                                }}
-                                className="flex items-center space-x-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold shadow-xs transition"
-                            >
-                                <Plus className="w-3.5 h-3.5" />
-                                <span>Add Product & Stock</span>
-                            </button>
+                            {isAdmin && (
+                                <button
+                                    onClick={() => {
+                                        setProductFormError('');
+                                        setIsAddProductModalOpen(true);
+                                    }}
+                                    className="flex items-center space-x-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold shadow-xs transition"
+                                >
+                                    <Plus className="w-3.5 h-3.5" />
+                                    <span>Add Product & Stock</span>
+                                </button>
+                            )}
                         </div>
                     </div>
 
@@ -480,6 +517,7 @@ const SalesOrders = () => {
                                     <th className="p-4 font-semibold text-right text-red-600">Damaged</th>
                                     <th className="p-4 font-semibold text-right text-emerald-700 font-bold">Available Stock</th>
                                     <th className="p-4 font-semibold text-center">Status</th>
+                                    {isAdmin && <th className="p-4 font-semibold text-center">Restock (Admin)</th>}
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100 font-mono text-xs">
@@ -523,6 +561,21 @@ const SalesOrders = () => {
                                                     </span>
                                                 )}
                                             </td>
+                                            {isAdmin && (
+                                                <td className="p-4 text-center font-sans">
+                                                    <button
+                                                        onClick={() => {
+                                                            setRestockProduct(inv);
+                                                            setAddedQty(20);
+                                                        }}
+                                                        className="inline-flex items-center space-x-1 px-2.5 py-1 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded text-xs font-semibold transition border border-emerald-200"
+                                                        title="Add physical stock units"
+                                                    >
+                                                        <Plus className="w-3 h-3" />
+                                                        <span>Add Stock</span>
+                                                    </button>
+                                                </td>
+                                            )}
                                         </tr>
                                     );
                                 })}
@@ -821,6 +874,85 @@ const SalesOrders = () => {
                                     className="px-5 py-2 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg shadow-sm transition disabled:opacity-50"
                                 >
                                     {productSubmitting ? 'Saving...' : 'Add to Inventory'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* MODAL: Restock / Add Product Quantity (Admin Only) */}
+            {restockProduct && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden border border-gray-200">
+                        <div className="p-5 border-b border-gray-200 flex justify-between items-center bg-gray-50/50">
+                            <div className="flex items-center space-x-2">
+                                <Boxes className="w-5 h-5 text-emerald-600" />
+                                <h3 className="font-bold text-gray-900 text-sm">Add Product Stock (Admin)</h3>
+                            </div>
+                            <button
+                                onClick={() => setRestockProduct(null)}
+                                className="text-gray-400 hover:text-gray-600"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleRestockSubmit} className="p-6 space-y-4">
+                            <div className="p-3 bg-slate-50 rounded-xl border border-gray-200 text-xs space-y-1">
+                                <div className="flex justify-between">
+                                    <span className="text-gray-500">Product:</span>
+                                    <span className="font-semibold text-gray-800">{restockProduct.product_name}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span className="text-gray-500">Code:</span>
+                                    <span className="font-mono font-bold text-gray-700">{restockProduct.product_code}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span className="text-gray-500">Current Physical:</span>
+                                    <span className="font-mono font-bold text-gray-900">{restockProduct.physical_qty} {restockProduct.unit}</span>
+                                </div>
+                                <div className="flex justify-between border-t border-gray-200 pt-1 mt-1">
+                                    <span className="text-gray-500">Reserved / Promised:</span>
+                                    <span className="font-mono text-amber-600 font-semibold">{restockProduct.reserved_qty} {restockProduct.unit}</span>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                                    Quantity to Add ({restockProduct.unit}) *
+                                </label>
+                                <input
+                                    type="number"
+                                    min="1"
+                                    required
+                                    value={addedQty}
+                                    onChange={(e) => setAddedQty(e.target.value)}
+                                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:outline-none font-mono"
+                                />
+                            </div>
+
+                            <div className="p-2.5 bg-emerald-50/70 border border-emerald-200 rounded-lg text-xs flex justify-between text-emerald-900">
+                                <span>New Total Physical Stock:</span>
+                                <span className="font-mono font-bold">
+                                    {Number(restockProduct.physical_qty) + Number(addedQty || 0)} {restockProduct.unit}
+                                </span>
+                            </div>
+
+                            <div className="pt-3 border-t border-gray-200 flex justify-end space-x-3">
+                                <button
+                                    type="button"
+                                    onClick={() => setRestockProduct(null)}
+                                    className="px-4 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-100 rounded-lg transition"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={restockSubmitting}
+                                    className="px-5 py-2 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg shadow-sm transition disabled:opacity-50"
+                                >
+                                    {restockSubmitting ? 'Updating...' : 'Add Stock'}
                                 </button>
                             </div>
                         </form>

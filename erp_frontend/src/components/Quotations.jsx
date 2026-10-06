@@ -34,7 +34,7 @@ const Quotations = () => {
     // Send Quote Modal State
     const [sendingQuote, setSendingQuote] = useState(null);
     const [sendChannel, setSendChannel] = useState('EMAIL'); // 'EMAIL' or 'PHONE'
-    const [sendSuccessToast, setSendSuccessToast] = useState(null);
+    const [statusToast, setStatusToast] = useState(null); // { type: 'success' | 'error', text: '' }
     const [isSending, setIsSending] = useState(false);
 
     // Form state
@@ -203,22 +203,42 @@ const Quotations = () => {
                 ? (sendingQuote.customer_email ? `Email (${sendingQuote.customer_email})` : 'Registered Email')
                 : (sendingQuote.customer_mobile ? `Phone Call (${sendingQuote.customer_mobile})` : 'Registered Phone');
 
-            setSendSuccessToast(`Quotation ${sendingQuote.quotation_number} successfully dispatched to ${sendingQuote.company_name} via ${contactTarget}!`);
+            setStatusToast({
+                type: 'success',
+                text: `Quotation ${sendingQuote.quotation_number} successfully dispatched to ${sendingQuote.company_name} via ${contactTarget}!`
+            });
             setSendingQuote(null);
             await fetchData();
         } catch (error) {
-            alert('Failed to send quotation: ' + (error.response?.data?.error || error.message));
+            setStatusToast({
+                type: 'error',
+                text: 'Failed to send quotation: ' + (error.response?.data?.error || error.message)
+            });
         } finally {
             setIsSending(false);
         }
     };
 
-    const handleStatusUpdate = async (quoteId, status) => {
+    const handleStatusUpdate = async (quote, status) => {
         try {
-            await api.patch(`/quotations/${quoteId}/status`, { status });
+            await api.patch(`/quotations/${quote.id}/status`, { status });
+            if (status === 'ACCEPTED') {
+                setStatusToast({
+                    type: 'success',
+                    text: `Customer ${quote.company_name} ACCEPTED quotation ${quote.quotation_number}! The proposal has been approved and is ready to convert to a Sales Order.`
+                });
+            } else if (status === 'REJECTED') {
+                setStatusToast({
+                    type: 'error',
+                    text: `Customer ${quote.company_name} REJECTED quotation ${quote.quotation_number}. The proposal has been marked as Lost/Rejected.`
+                });
+            }
             await fetchData();
         } catch (error) {
-            alert('Failed to update status: ' + (error.response?.data?.error || error.message));
+            setStatusToast({
+                type: 'error',
+                text: 'Failed to update status: ' + (error.response?.data?.error || error.message)
+            });
         }
     };
 
@@ -252,16 +272,28 @@ const Quotations = () => {
 
     return (
         <div className="space-y-6">
-            {/* Notification Toast Banner */}
-            {sendSuccessToast && (
-                <div className="p-4 rounded-xl text-xs font-medium flex items-center justify-between border bg-emerald-50 border-emerald-200 text-emerald-800 shadow-xs">
-                    <div className="flex items-center space-x-2">
-                        <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
-                        <span>{sendSuccessToast}</span>
+            {/* Notification Toast Banner: Green for Accept/Success, Red for Reject/Error */}
+            {statusToast && (
+                <div className={`p-4 rounded-xl text-xs font-semibold flex items-center justify-between border shadow-sm transition-all ${
+                    statusToast.type === 'success'
+                        ? 'bg-emerald-50 border-emerald-300 text-emerald-900'
+                        : 'bg-red-50 border-red-300 text-red-900'
+                }`}>
+                    <div className="flex items-center space-x-2.5">
+                        {statusToast.type === 'success' ? (
+                            <CheckCircle className="w-5 h-5 text-emerald-600 shrink-0" />
+                        ) : (
+                            <XCircle className="w-5 h-5 text-red-600 shrink-0" />
+                        )}
+                        <span>{statusToast.text}</span>
                     </div>
                     <button 
-                        onClick={() => setSendSuccessToast(null)}
-                        className="text-emerald-600 hover:text-emerald-900 font-bold ml-4"
+                        onClick={() => setStatusToast(null)}
+                        className={`font-bold ml-4 p-1 rounded-md transition ${
+                            statusToast.type === 'success'
+                                ? 'text-emerald-700 hover:bg-emerald-100'
+                                : 'text-red-700 hover:bg-red-100'
+                        }`}
                     >
                         <X className="w-4 h-4" />
                     </button>
@@ -401,14 +433,14 @@ const Quotations = () => {
                                                     {quote.status === 'SENT' && (
                                                         <>
                                                             <button
-                                                                onClick={() => handleStatusUpdate(quote.id, 'ACCEPTED')}
+                                                                onClick={() => handleStatusUpdate(quote, 'ACCEPTED')}
                                                                 className="inline-flex items-center space-x-1 px-2.5 py-1 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded text-xs font-semibold transition"
                                                             >
                                                                 <CheckCircle className="w-3 h-3" />
                                                                 <span>Accept</span>
                                                             </button>
                                                             <button
-                                                                onClick={() => handleStatusUpdate(quote.id, 'REJECTED')}
+                                                                onClick={() => handleStatusUpdate(quote, 'REJECTED')}
                                                                 className="inline-flex items-center space-x-1 px-2 py-1 bg-red-50 text-red-600 hover:bg-red-100 rounded text-xs font-semibold transition"
                                                             >
                                                                 <XCircle className="w-3 h-3" />
