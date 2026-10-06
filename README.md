@@ -161,18 +161,97 @@ await client.query('COMMIT');
 
 ```mermaid
 erDiagram
-    USERS { uuid id PK; varchar name; varchar email UK; varchar password_hash; varchar role }
-    CUSTOMERS { uuid id PK; varchar company_name; varchar contact_person; varchar email; varchar mobile; varchar city; text address }
-    PRODUCTS { uuid id PK; varchar product_code UK; varchar name; varchar category; varchar unit; numeric base_price }
-    INVENTORY { uuid id PK; uuid product_id FK UK; int physical_qty; int reserved_qty; int damaged_qty }
-    ENQUIRIES { uuid id PK; varchar enquiry_number UK; uuid customer_id FK; date enquiry_date; varchar status }
-    ENQUIRY_ITEMS { uuid id PK; uuid enquiry_id FK; uuid product_id FK; int quantity }
-    QUOTATIONS { uuid id PK; varchar quotation_number UK; uuid enquiry_id FK; uuid customer_id FK; varchar status; numeric grand_total }
-    QUOTATION_ITEMS { uuid id PK; uuid quotation_id FK; uuid product_id FK; int quantity; numeric unit_price; numeric discount_pct; numeric gst_pct; numeric line_amount }
-    SALES_ORDERS { uuid id PK; varchar order_number UK; uuid quotation_id FK UK; uuid customer_id FK; varchar status; numeric total_amount }
-    SALES_ORDER_ITEMS { uuid id PK; uuid sales_order_id FK; uuid product_id FK; int quantity; numeric unit_price; numeric line_amount }
-    DISPATCHES { uuid id PK; varchar dispatch_number UK; uuid sales_order_id FK UK; varchar vehicle_number; varchar driver_name }
-    DISPATCH_ITEMS { uuid id PK; uuid dispatch_id FK; uuid product_id FK; int quantity }
+    USERS {
+        uuid id PK
+        varchar name
+        varchar email UK
+        varchar password_hash
+        varchar role
+    }
+    CUSTOMERS {
+        uuid id PK
+        varchar company_name
+        varchar contact_person
+        varchar email
+        varchar mobile
+        varchar city
+        text address
+    }
+    PRODUCTS {
+        uuid id PK
+        varchar product_code UK
+        varchar name
+        varchar category
+        varchar unit
+        numeric base_price
+    }
+    INVENTORY {
+        uuid id PK
+        uuid product_id FK
+        int physical_qty
+        int reserved_qty
+        int damaged_qty
+    }
+    ENQUIRIES {
+        uuid id PK
+        varchar enquiry_number UK
+        uuid customer_id FK
+        date enquiry_date
+        varchar status
+    }
+    ENQUIRY_ITEMS {
+        uuid id PK
+        uuid enquiry_id FK
+        uuid product_id FK
+        int quantity
+    }
+    QUOTATIONS {
+        uuid id PK
+        varchar quotation_number UK
+        uuid enquiry_id FK
+        uuid customer_id FK
+        varchar status
+        numeric grand_total
+    }
+    QUOTATION_ITEMS {
+        uuid id PK
+        uuid quotation_id FK
+        uuid product_id FK
+        int quantity
+        numeric unit_price
+        numeric discount_pct
+        numeric gst_pct
+        numeric line_amount
+    }
+    SALES_ORDERS {
+        uuid id PK
+        varchar order_number UK
+        uuid quotation_id FK
+        uuid customer_id FK
+        varchar status
+        numeric total_amount
+    }
+    SALES_ORDER_ITEMS {
+        uuid id PK
+        uuid sales_order_id FK
+        uuid product_id FK
+        int quantity
+        numeric unit_price
+        numeric line_amount
+    }
+    DISPATCHES {
+        uuid id PK
+        varchar dispatch_number UK
+        uuid sales_order_id FK
+        varchar vehicle_number
+        varchar driver_name
+    }
+    DISPATCH_ITEMS {
+        uuid id PK
+        uuid dispatch_id FK
+        uuid product_id FK
+        int quantity
+    }
 
     CUSTOMERS ||--o{ ENQUIRIES : places
     CUSTOMERS ||--o{ QUOTATIONS : receives
