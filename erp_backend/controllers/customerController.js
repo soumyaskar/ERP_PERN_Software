@@ -2,15 +2,17 @@ const pool = require('../config/db');
 
 const createCustomer = async (req, res) => {
     try {
-        const { company_name, contact_person, email, mobile, city } = req.body;
+        const { company_name, contact_person, email, mobile, phone, city, address } = req.body;
         if (!company_name) {
             return res.status(400).json({ error: 'Company name is required' });
         }
 
+        const phoneVal = mobile || phone || null;
+
         const newCustomer = await pool.query(
-            `INSERT INTO customers (company_name, contact_person, email, mobile, city) 
-             VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-            [company_name, contact_person, email, mobile, city]
+            `INSERT INTO customers (company_name, contact_person, email, mobile, city, address) 
+             VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+            [company_name, contact_person, email, phoneVal, city, address || null]
         );
 
         res.status(201).json(newCustomer.rows[0]);

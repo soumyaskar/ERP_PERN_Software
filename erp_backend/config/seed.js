@@ -25,10 +25,10 @@ async function seed() {
 
         console.log('--- Seeding Customers ---');
         const custRes = await client.query(`
-            INSERT INTO customers (company_name, contact_person, email, mobile, city) VALUES
-            ('ABC Engineering Pvt. Ltd.', 'Rajesh Sharma', 'rajesh@abceng.com', '9876543210', 'Mumbai'),
-            ('Apex Manufacturing Ltd.', 'Priya Nair', 'priya@apexmanuf.com', '9822334455', 'Pune'),
-            ('Global Petrochem Corp', 'Amit Verma', 'amit@globalpetro.com', '9811223344', 'Delhi')
+            INSERT INTO customers (company_name, contact_person, email, mobile, city, address) VALUES
+            ('ABC Engineering Pvt. Ltd.', 'Rajesh Sharma', 'rajesh@abceng.com', '9876543210', 'Mumbai', 'Plot 42, MIDC Industrial Area, Andheri East'),
+            ('Apex Manufacturing Ltd.', 'Priya Nair', 'priya@apexmanuf.com', '9822334455', 'Pune', 'Sector 10, Bhosari Industrial Zone'),
+            ('Global Petrochem Corp', 'Amit Verma', 'amit@globalpetro.com', '9811223344', 'Delhi', 'Tower B, Okhla Industrial Phase II')
             RETURNING id, company_name
         `);
         console.log(`✓ ${custRes.rows.length} customers seeded`);

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api';
 import { ShieldCheck, UserCheck, Lock, Mail, ArrowRight, Building } from 'lucide-react';
@@ -9,6 +9,13 @@ const Login = () => {
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
+
+    useEffect(() => {
+        const token = localStorage.getItem('token');
+        if (token) {
+            navigate('/dashboard/customers', { replace: true });
+        }
+    }, [navigate]);
 
     const handleLogin = async (e) => {
         if (e) e.preventDefault();

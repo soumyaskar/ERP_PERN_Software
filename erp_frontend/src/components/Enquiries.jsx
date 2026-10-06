@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import api from '../api';
 import { ClipboardList, Plus, Building2, Calendar, FileText, ChevronDown, ChevronRight, X, Trash2, ArrowRight } from 'lucide-react';
 
@@ -38,6 +38,7 @@ const Enquiries = () => {
     const [formError, setFormError] = useState('');
     const [submitting, setSubmitting] = useState(false);
     const navigate = useNavigate();
+    const location = useLocation();
 
     const fetchData = async () => {
         try {
@@ -63,6 +64,14 @@ const Enquiries = () => {
     useEffect(() => {
         fetchData();
     }, []);
+
+    useEffect(() => {
+        if (location.state?.createForCustomerId) {
+            setEnquiryForm(prev => ({ ...prev, customer_id: location.state.createForCustomerId }));
+            setIsEnquiryModalOpen(true);
+            navigate(location.pathname, { replace: true, state: {} });
+        }
+    }, [location.state]);
 
     // Line items manipulation in enquiry modal
     const handleItemChange = (index, field, value) => {

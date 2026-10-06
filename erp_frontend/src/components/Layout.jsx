@@ -1,5 +1,5 @@
 import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { ClipboardList, FileText, ShoppingCart } from 'lucide-react';
+import { Users, ClipboardList, FileText, ShoppingCart } from 'lucide-react';
 
 const Layout = () => {
     const navigate = useNavigate();
@@ -11,8 +11,8 @@ const Layout = () => {
         navigate('/');
     };
 
-    // STRICTLY 3 Nav Items (Login is the 4th screen, handled outside)
     const navItems = [
+        { path: '/dashboard/customers', label: 'Customers', icon: Users },
         { path: '/dashboard/enquiries', label: 'Enquiries', icon: ClipboardList },
         { path: '/dashboard/quotations', label: 'Quotations', icon: FileText },
         { path: '/dashboard/orders', label: 'Sales Orders', icon: ShoppingCart },

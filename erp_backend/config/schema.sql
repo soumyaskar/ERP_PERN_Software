@@ -33,6 +33,7 @@ CREATE TABLE customers (
     email VARCHAR(255),
     mobile VARCHAR(50),
     city VARCHAR(100),
+    address TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
